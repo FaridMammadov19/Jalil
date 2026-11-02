@@ -105,3 +105,61 @@ public sealed class CommandMatcherTests
             hasMedia: false));
     }
 }
+
+public sealed class ReactionEmojiMatcherTests
+{
+    [Theory]
+    [InlineData("✅", "✅")]
+    [InlineData("↩", "↩️")]
+    [InlineData(" ❤️ ", "❤")]
+    public void MatchesConfiguredEmoji(string telegramEmoji, string configuredEmoji)
+    {
+        Assert.True(ReactionEmojiMatcher.IsMatch(telegramEmoji, configuredEmoji));
+    }
+
+    [Theory]
+    [InlineData("✅", "❌")]
+    [InlineData("👍", "👎")]
+    [InlineData(null, "✅")]
+    [InlineData("✅", null)]
+    public void RejectsDifferentOrMissingEmoji(string? telegramEmoji, string? configuredEmoji)
+    {
+        Assert.False(ReactionEmojiMatcher.IsMatch(telegramEmoji, configuredEmoji));
+    }
+}
+
+public sealed class ReactionEdgeDetectorTests
+{
+    [Theory]
+    [InlineData(true, false, true, false)]
+    [InlineData(false, false, true, true)]
+    public void DetectsNewOwnSelection(
+        bool previousStateWasKnown,
+        bool wasSelected,
+        bool isSelected,
+        bool isFreshOwnReaction)
+    {
+        Assert.True(ReactionEdgeDetector.IsNewSelection(
+            previousStateWasKnown,
+            wasSelected,
+            isSelected,
+            isFreshOwnReaction));
+    }
+
+    [Theory]
+    [InlineData(true, true, true, true)]
+    [InlineData(true, false, false, true)]
+    [InlineData(false, false, true, false)]
+    public void RejectsDuplicateUnselectedOrUnattributedState(
+        bool previousStateWasKnown,
+        bool wasSelected,
+        bool isSelected,
+        bool isFreshOwnReaction)
+    {
+        Assert.False(ReactionEdgeDetector.IsNewSelection(
+            previousStateWasKnown,
+            wasSelected,
+            isSelected,
+            isFreshOwnReaction));
+    }
+}

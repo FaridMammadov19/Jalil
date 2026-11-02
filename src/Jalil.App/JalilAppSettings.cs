@@ -10,6 +10,8 @@ internal sealed class JalilAppSettings
 
     public BehaviorSettings Behavior { get; init; } = new();
 
+    public ReactionRoutingSettings ReactionRouting { get; init; } = new();
+
     public static JalilAppSettings Load(string path)
     {
         if (!File.Exists(path))
@@ -43,4 +45,13 @@ internal sealed class RoutingSettings
 internal sealed class BehaviorSettings
 {
     public bool DeleteCommandMessages { get; init; } = true;
+}
+
+internal sealed class ReactionRoutingSettings
+{
+    public bool Enabled { get; init; } = true;
+
+    public string AddEmoji { get; init; } = "👍";
+
+    public string RemoveEmoji { get; init; } = "👎";
 }

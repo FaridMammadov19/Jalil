@@ -22,7 +22,13 @@ On Jalil's first run, enter those values locally. Telegram then sends a login co
 
 ## Configuration
 
-Edit `appsettings.json` in the Jalil project directory:
+Copy the safe template once, then edit your ignored local `appsettings.json`:
+
+```bash
+cp appsettings.example.json appsettings.json
+```
+
+The local file is excluded from Git because it may contain your phone number. Its structure is:
 
 ```json
 {
@@ -36,11 +42,18 @@ Edit `appsettings.json` in the Jalil project directory:
   },
   "Behavior": {
     "DeleteCommandMessages": true
+  },
+  "ReactionRouting": {
+    "Enabled": true,
+    "AddEmoji": "👍",
+    "RemoveEmoji": "👎"
   }
 }
 ```
 
 The two commands must be different. Matching is exact and case-insensitive. When message deletion is enabled, Jalil changes the folder first and then deletes the command message for all participants. If the folder operation fails, the command remains visible so it can be retried.
+
+When reaction routing is enabled, reacting to any message with `AddEmoji` adds its conversation to the folder, while `RemoveEmoji` removes it. Only reactions selected by the authorized Jalil account are acted on; other participants' reactions are ignored. Standard emoji reactions are supported in this first version. Commands remain available as a fallback.
 
 The phone number is optional and can remain empty. Do not put the API hash, login code, 2-step verification password, or Telegram session in this file.
 
@@ -83,7 +96,14 @@ Then test command detection without changing a folder:
 ./.dotnet/dotnet run --project src/Jalil.App -- --dry-run
 ```
 
-Finally run normally and send `/done` from an official Telegram client in a disposable test conversation. Send `/undo` to remove it again.
+Finally run normally and test in a disposable conversation:
+
+1. React to a message with `👍` to add the conversation.
+2. React with `👎` to remove it again.
+3. Confirm another participant using the same emoji does not trigger an action.
+4. Confirm `/done` and `/undo` still work as fallbacks.
+
+Add a fresh reaction after Jalil displays its watching status. If the message already has your chosen reaction, remove it and add it again.
 
 The Telegram session and update checkpoint are stored outside the repository in the operating system's local application-data directory under `Jalil`. Jalil does not store customer message bodies or media.
 
@@ -92,6 +112,7 @@ The Telegram session and update checkpoint are stored outside the repository in 
 - The configured add command adds the conversation; the configured remove command removes it. Surrounding whitespace and letter case are ignored.
 - Incoming commands, suffixed or embedded commands, edits, and media captions are ignored.
 - Successfully processed command messages are deleted for all participants when `DeleteCommandMessages` is enabled.
+- Configured standard emoji reactions can add or remove the conversation; reactions from other participants are ignored.
 - Regular existing Telegram folders are supported; imported/shared folders are rejected.
 - The first version adds the conversation to the target folder. It preserves other folder memberships.
 - Secret chats are not supported.

@@ -19,6 +19,7 @@ The first version runs locally on macOS or Windows. The computer running Jalil m
 5. Jalil adds that conversation to the configured native folder while preserving unrelated folder configuration and membership.
 6. If the user sends `/undo`, Jalil removes the conversation from the configured folder.
 7. After a successful folder operation, Jalil deletes the command message for all participants.
+8. As an alternative trigger, the user can react to any message with configured add/remove emoji; other participants' reactions are ignored.
 
 ## Acceptance criteria
 
@@ -30,6 +31,7 @@ The first version runs locally on macOS or Windows. The computer running Jalil m
 - Customer message bodies and media are not persisted by Jalil.
 - The same source works on macOS and Windows.
 - Folder name, add command, remove command, phone number, and command-message deletion are configurable in `appsettings.json`.
+- Standard add/remove reaction emoji are configurable, with commands retained as fallback triggers.
 
 ## Initial limitations
 

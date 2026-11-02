@@ -2,7 +2,7 @@
 
 - **Status:** Implementation in progress
 - **Date:** 2026-11-02
-- **Outcome:** When the authorized user sends `/done` in a customer conversation from an official Telegram client, add that conversation to the configured native Telegram folder; `/undo` removes it for testing.
+- **Outcome:** Configured outgoing commands or the authorized user's configured standard emoji reactions add/remove a customer conversation from the configured native Telegram folder.
 - **Product shape:** A single-user Telegram client companion using the user API (MTProto), not a Bot API bot.
 
 ## 1. Current decision

@@ -6,7 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\appsettings.json" Link="appsettings.json">
+    <None Include="..\..\appsettings.example.json" Link="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

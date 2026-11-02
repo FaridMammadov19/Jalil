@@ -8,7 +8,9 @@
 *.user
 *.suo
 .env
+appsettings.json
 appsettings.local.json
 *.session
 *.session.*
 Updates.state
+Reactions.state.json

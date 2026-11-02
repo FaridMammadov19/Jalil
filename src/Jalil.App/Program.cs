@@ -32,6 +32,8 @@ var folderName = GetOption(args, "--folder")
     ?? settings.Routing.FolderName;
 var addCommand = settings.Routing.AddCommand?.Trim();
 var removeCommand = settings.Routing.RemoveCommand?.Trim();
+var addReactionEmoji = settings.ReactionRouting.AddEmoji?.Trim();
+var removeReactionEmoji = settings.ReactionRouting.RemoveEmoji?.Trim();
 
 if (string.IsNullOrWhiteSpace(addCommand) || string.IsNullOrWhiteSpace(removeCommand))
 {
@@ -42,6 +44,23 @@ if (string.IsNullOrWhiteSpace(addCommand) || string.IsNullOrWhiteSpace(removeCom
 if (string.Equals(addCommand, removeCommand, StringComparison.OrdinalIgnoreCase))
 {
     Console.Error.WriteLine("Routing.AddCommand and Routing.RemoveCommand must be different.");
+    return 2;
+}
+
+if (settings.ReactionRouting.Enabled &&
+    (string.IsNullOrWhiteSpace(addReactionEmoji) || string.IsNullOrWhiteSpace(removeReactionEmoji)))
+{
+    Console.Error.WriteLine("ReactionRouting.AddEmoji and ReactionRouting.RemoveEmoji must both be configured when reaction routing is enabled.");
+    return 2;
+}
+
+if (settings.ReactionRouting.Enabled &&
+    string.Equals(
+        NormalizeEmoji(addReactionEmoji!),
+        NormalizeEmoji(removeReactionEmoji!),
+        StringComparison.Ordinal))
+{
+    Console.Error.WriteLine("ReactionRouting.AddEmoji and ReactionRouting.RemoveEmoji must be different.");
     return 2;
 }
 
@@ -70,14 +89,19 @@ TryRestrictDirectoryPermissions(dataDirectory);
 
 var sessionPath = Path.Combine(dataDirectory, "telegram.session");
 var updateStatePath = Path.Combine(dataDirectory, "Updates.state");
+var reactionStatePath = Path.Combine(dataDirectory, "Reactions.state.json");
 var login = new TelegramLoginConfiguration(sessionPath, settings.Telegram.PhoneNumber);
 var options = new TelegramCompanionOptions(
     folderName?.Trim() ?? string.Empty,
     addCommand,
     removeCommand,
     settings.Behavior.DeleteCommandMessages,
+    settings.ReactionRouting.Enabled,
+    addReactionEmoji ?? string.Empty,
+    removeReactionEmoji ?? string.Empty,
     sessionPath,
     updateStatePath,
+    reactionStatePath,
     dryRun,
     listFolders);
 
@@ -137,6 +161,9 @@ static string ResolveSettingsPath(string? explicitPath)
         : Path.Combine(AppContext.BaseDirectory, "appsettings.json");
 }
 
+static string NormalizeEmoji(string emoji)
+    => emoji.Replace("\uFE0F", string.Empty, StringComparison.Ordinal);
+
 static void TryRestrictDirectoryPermissions(string path)
 {
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -158,7 +185,7 @@ static void PrintHelp()
 {
     Console.WriteLine(
         """
-        Jalil - manage a Telegram conversation's native folder with /done and /undo
+        Jalil - manage a Telegram conversation's native folder with commands and reactions
 
         Usage:
           dotnet run --project src/Jalil.App -- [options]
@@ -167,7 +194,7 @@ static void PrintHelp()
           --folder <name>   Existing Telegram folder to use
           --settings <path> Path to appsettings.json
           --list-folders    Sign in and list available Telegram folders
-          --dry-run         Detect /done without changing Telegram folders
+          --dry-run         Detect configured commands/reactions without making changes
           --help, -h        Show this help
 
         Environment variables:
