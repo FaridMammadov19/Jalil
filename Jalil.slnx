@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Jalil.App/Jalil.App.csproj" />
+    <Project Path="src/Jalil.Core/Jalil.Core.csproj" />
+    <Project Path="src/Jalil.Telegram/Jalil.Telegram.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Jalil.Core.Tests/Jalil.Core.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,14 @@
+.dotnet/
+.dotnet-home/
+.nuget/
+.vs/
+.idea/
+**/bin/
+**/obj/
+*.user
+*.suo
+.env
+appsettings.local.json
+*.session
+*.session.*
+Updates.state
