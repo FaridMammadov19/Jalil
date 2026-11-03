@@ -1,3 +1,4 @@
+using Jalil.Core;
 using TL;
 
 namespace Jalil.Telegram;
@@ -9,7 +10,11 @@ internal enum FolderMutationStatus
     WouldAdd,
     Removed,
     AlreadyAbsent,
-    WouldRemove
+    WouldRemove,
+    Archived,
+    Restored,
+    WouldArchive,
+    WouldRestore
 }
 internal sealed class FolderMutationService(WTelegram.Client client)
 {
@@ -39,10 +44,9 @@ internal sealed class FolderMutationService(WTelegram.Client client)
         var response = await client.Messages_GetDialogFilters();
         var matching = (response.filters ?? [])
             .OfType<DialogFilterBase>()
-            .Where(filter => string.Equals(
+            .Where(filter => UnicodeTextMatcher.EqualsIgnoringCaseAndNormalization(
                 filter.Title?.text?.Trim(),
-                folderName.Trim(),
-                StringComparison.OrdinalIgnoreCase))
+                folderName))
             .ToArray();
 
         if (matching.Length == 0)
@@ -121,10 +125,9 @@ internal sealed class FolderMutationService(WTelegram.Client client)
         var response = await client.Messages_GetDialogFilters();
         var matching = (response.filters ?? [])
             .OfType<DialogFilterBase>()
-            .Where(filter => string.Equals(
+            .Where(filter => UnicodeTextMatcher.EqualsIgnoringCaseAndNormalization(
                 filter.Title?.text?.Trim(),
-                folderName.Trim(),
-                StringComparison.OrdinalIgnoreCase))
+                folderName))
             .ToArray();
 
         if (matching.Length == 0)

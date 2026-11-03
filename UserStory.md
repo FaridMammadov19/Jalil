@@ -2,7 +2,7 @@
 
 ## Goal
 
-As the owner of a Telegram work account, I want to mark a finished customer conversation by sending `/done` in that conversation, so that the complete conversation appears in an existing native Telegram folder. For testing, I can send `/undo` to remove it again.
+As the owner of a Telegram work account, I want to mark a finished customer conversation using a command or reaction, so that the conversation is archived. I can use the inverse command or reaction to restore it.
 
 ## Approved product decision
 
@@ -16,8 +16,8 @@ The first version runs locally on macOS or Windows. The computer running Jalil m
 2. Jalil signs in to the user's Telegram account with the user's own `api_id` and `api_hash`.
 3. The user sends the visible message `/done` in a customer chat from an official Telegram client.
 4. Jalil receives the outgoing-message update and identifies the containing conversation.
-5. Jalil adds that conversation to the configured native folder while preserving unrelated folder configuration and membership.
-6. If the user sends `/undo`, Jalil removes the conversation from the configured folder.
+5. Jalil archives that conversation using Telegram's native Archive.
+6. If the user sends `/undo`, Jalil restores the conversation to the main chat list.
 7. After a successful folder operation, Jalil deletes the command message for all participants.
 8. As an alternative trigger, the user can react to any message with configured add/remove emoji; other participants' reactions are ignored.
 
@@ -30,7 +30,7 @@ The first version runs locally on macOS or Windows. The computer running Jalil m
 - Existing folder title, icon, filters, pinned chats, includes, and excludes are preserved except for the required target-chat change.
 - Customer message bodies and media are not persisted by Jalil.
 - The same source works on macOS and Windows.
-- Folder name, add command, remove command, phone number, and command-message deletion are configurable in `appsettings.json`.
+- Archive versus custom-folder destination, folder name, commands, phone number, and command-message deletion are configurable in `appsettings.json`.
 - Standard add/remove reaction emoji are configurable, with commands retained as fallback triggers.
 
 ## Initial limitations

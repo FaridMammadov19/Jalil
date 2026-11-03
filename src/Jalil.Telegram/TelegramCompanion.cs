@@ -12,6 +12,7 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
     private WTelegram.Client? _client;
     private WTelegram.UpdateManager? _manager;
     private FolderMutationService? _folderService;
+    private ArchiveMutationService? _archiveService;
     private ReactionStateStore? _reactionStateStore;
     private volatile bool _ready;
 
@@ -22,6 +23,7 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
         await using var client = new WTelegram.Client(loginConfiguration);
         _client = client;
         _folderService = new FolderMutationService(client);
+        _archiveService = new ArchiveMutationService(client);
         _reactionStateStore = new ReactionStateStore(options.ReactionStatePath);
         _manager = client.WithUpdateManager(HandleUpdateAsync, options.UpdateStatePath);
 
@@ -49,9 +51,12 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
                 await ProcessUpdateAsync(update, cancellationToken);
             }
 
+            var targetDescription = options.Destination == RoutingDestination.Archive
+                ? "Telegram Archive"
+                : $"folder '{options.FolderName}'";
             Console.WriteLine(options.DryRun
                 ? $"Jalil is watching for {options.AddCommand} and {options.RemoveCommand} (dry run: nothing will change)."
-                : $"Jalil is watching for {options.AddCommand} and {options.RemoveCommand}. Target folder: {options.FolderName}");
+                : $"Jalil is watching for {options.AddCommand} and {options.RemoveCommand}. Target: {targetDescription}");
             if (options.ReactionRoutingEnabled)
             {
                 Console.WriteLine(
@@ -192,13 +197,11 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
             var addIsNew = ReactionEdgeDetector.IsNewSelection(
                 addWasKnown,
                 addWasSelected,
-                addState.IsSelected,
-                addState.IsFreshOwnReaction);
+                addState.IsSelected);
             var removeIsNew = ReactionEdgeDetector.IsNewSelection(
                 removeWasKnown,
                 removeWasSelected,
-                removeState.IsSelected,
-                removeState.IsFreshOwnReaction);
+                removeState.IsSelected);
 
             bool? shouldAdd = (addIsNew, removeIsNew) switch
             {
@@ -258,6 +261,20 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
         bool shouldAdd,
         CancellationToken cancellationToken)
     {
+        if (options.Destination == RoutingDestination.Archive)
+        {
+            if (_archiveService is null)
+            {
+                throw new InvalidOperationException("Archive service is not available.");
+            }
+
+            return await _archiveService.SetArchivedAsync(
+                peer,
+                shouldAdd,
+                options.DryRun,
+                cancellationToken);
+        }
+
         if (_folderService is null)
         {
             throw new InvalidOperationException("Folder service is not available.");
@@ -284,17 +301,9 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
                            ReactionEmojiMatcher.IsMatch(emoji.emoticon, configuredEmoji))
             .OrderByDescending(item => item.chosen_order)
             .FirstOrDefault();
-        var freshThreshold = DateTime.UtcNow.AddMinutes(-2);
-        var hasFreshOwnReaction = (reactions.recent_reactions ?? []).Any(item =>
-            item.flags.HasFlag(MessagePeerReaction.Flags.my) &&
-            item.date.ToUniversalTime() >= freshThreshold &&
-            item.reaction is ReactionEmoji emoji &&
-            ReactionEmojiMatcher.IsMatch(emoji.emoticon, configuredEmoji));
-
         return new OwnReactionState(
             selected is not null,
-            selected?.chosen_order ?? -1,
-            hasFreshOwnReaction);
+            selected?.chosen_order ?? -1);
     }
 
     private static string ReactionKey(InputPeer peer, int messageId, string emoji)
@@ -310,12 +319,15 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
             FolderMutationStatus.Removed => $"{trigger}: removed conversation from the configured folder.",
             FolderMutationStatus.AlreadyAbsent => $"{trigger}: conversation is already absent from the configured folder.",
             FolderMutationStatus.WouldRemove => $"{trigger}: dry run would remove the conversation.",
+            FolderMutationStatus.Archived => $"{trigger}: archived conversation.",
+            FolderMutationStatus.Restored => $"{trigger}: restored conversation from Archive.",
+            FolderMutationStatus.WouldArchive => $"{trigger}: dry run would archive the conversation.",
+            FolderMutationStatus.WouldRestore => $"{trigger}: dry run would restore the conversation from Archive.",
             _ => $"Processed {trigger}."
         });
     }
 
     private sealed record OwnReactionState(
         bool IsSelected,
-        int ChosenOrder,
-        bool IsFreshOwnReaction);
+        int ChosenOrder);
 }

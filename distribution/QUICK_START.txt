@@ -1,0 +1,37 @@
+JALIL QUICK START
+=================
+
+Before the first launch
+-----------------------
+Create a Telegram API application at https://my.telegram.org under
+"API development tools". Keep its api_id and api_hash ready.
+
+macOS
+-----
+1. Extract the ZIP.
+2. Control-click "Start Jalil.command" and choose Open.
+3. If macOS asks again, confirm that you want to open it.
+
+Windows
+-------
+1. Extract the ZIP.
+2. Double-click "Start Jalil.cmd".
+3. If Windows SmartScreen appears, choose More info, then Run anyway.
+
+First-time setup
+----------------
+Enter the Telegram api_id, api_hash, phone number, login code, and optional
+2-step verification password in the Jalil window. Reusable values and the
+Telegram session stay in your user application-data folder. Login codes and
+2-step verification passwords are never saved.
+
+Normal use
+----------
+Keep the Jalil window running. By default:
+
+  - React with thumbs up to archive a conversation.
+  - React with thumbs down to restore it.
+  - /done and /undo remain available as fallback commands.
+
+To change the destination, folder name, commands, or emoji, close Jalil and
+edit appsettings.json in this folder with a text editor. Then start Jalil again.

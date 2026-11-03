@@ -2,7 +2,7 @@
 
 - **Status:** Implementation in progress
 - **Date:** 2026-11-02
-- **Outcome:** Configured outgoing commands or the authorized user's configured standard emoji reactions add/remove a customer conversation from the configured native Telegram folder.
+- **Outcome:** Configured outgoing commands or the authorized user's configured standard emoji reactions archive/restore a customer conversation, with custom-folder routing retained as a configurable mode.
 - **Product shape:** A single-user Telegram client companion using the user API (MTProto), not a Bot API bot.
 
 ## 1. Current decision

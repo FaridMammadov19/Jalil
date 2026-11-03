@@ -30,6 +30,15 @@ catch (Exception exception)
 var folderName = GetOption(args, "--folder")
     ?? Environment.GetEnvironmentVariable("JALIL_DONE_FOLDER")
     ?? settings.Routing.FolderName;
+if (!Enum.TryParse<RoutingDestination>(
+        settings.Routing.Destination,
+        ignoreCase: true,
+        out var routingDestination))
+{
+    Console.Error.WriteLine("Routing.Destination must be either 'Archive' or 'Folder'.");
+    return 2;
+}
+
 var addCommand = settings.Routing.AddCommand?.Trim();
 var removeCommand = settings.Routing.RemoveCommand?.Trim();
 var addReactionEmoji = settings.ReactionRouting.AddEmoji?.Trim();
@@ -64,13 +73,17 @@ if (settings.ReactionRouting.Enabled &&
     return 2;
 }
 
-if (!listFolders && string.IsNullOrWhiteSpace(folderName))
+if (!listFolders &&
+    routingDestination == RoutingDestination.Folder &&
+    string.IsNullOrWhiteSpace(folderName))
 {
     Console.Write("Existing Telegram folder to use for /done: ");
     folderName = Console.ReadLine();
 }
 
-if (!listFolders && string.IsNullOrWhiteSpace(folderName))
+if (!listFolders &&
+    routingDestination == RoutingDestination.Folder &&
+    string.IsNullOrWhiteSpace(folderName))
 {
     Console.Error.WriteLine("A target folder is required. Use --folder or JALIL_DONE_FOLDER.");
     return 2;
@@ -90,8 +103,15 @@ TryRestrictDirectoryPermissions(dataDirectory);
 var sessionPath = Path.Combine(dataDirectory, "telegram.session");
 var updateStatePath = Path.Combine(dataDirectory, "Updates.state");
 var reactionStatePath = Path.Combine(dataDirectory, "Reactions.state.json");
-var login = new TelegramLoginConfiguration(sessionPath, settings.Telegram.PhoneNumber);
+var credentialsPath = Path.Combine(dataDirectory, "credentials.json");
+var credentialsStore = new TelegramCredentialsStore(credentialsPath);
+var login = new TelegramLoginConfiguration(
+    sessionPath,
+    settings.Telegram.PhoneNumber,
+    credentialsStore,
+    credentialsPath);
 var options = new TelegramCompanionOptions(
+    routingDestination,
     folderName?.Trim() ?? string.Empty,
     addCommand,
     removeCommand,
@@ -188,7 +208,7 @@ static void PrintHelp()
         Jalil - manage a Telegram conversation's native folder with commands and reactions
 
         Usage:
-          dotnet run --project src/Jalil.App -- [options]
+          Jalil [options]
 
         Options:
           --folder <name>   Existing Telegram folder to use
@@ -208,8 +228,13 @@ static void PrintHelp()
         """);
 }
 
-file sealed class TelegramLoginConfiguration(string sessionPath, string? configuredPhoneNumber)
+file sealed class TelegramLoginConfiguration(
+    string sessionPath,
+    string? configuredPhoneNumber,
+    TelegramCredentialsStore credentialsStore,
+    string credentialsPath)
 {
+    private bool _firstRunNoticeWritten;
     private readonly Dictionary<string, string?> _values = new(StringComparer.Ordinal)
     {
         ["session_pathname"] = sessionPath,
@@ -227,13 +252,21 @@ file sealed class TelegramLoginConfiguration(string sessionPath, string? configu
 
         var value = key switch
         {
-            "api_id" => Environment.GetEnvironmentVariable("JALIL_TELEGRAM_API_ID")
-                ?? ReadVisible("Telegram API ID: "),
-            "api_hash" => Environment.GetEnvironmentVariable("JALIL_TELEGRAM_API_HASH")
-                ?? ReadSecret("Telegram API hash: "),
-            "phone_number" => Environment.GetEnvironmentVariable("JALIL_TELEGRAM_PHONE_NUMBER")
-                ?? NullIfWhiteSpace(configuredPhoneNumber)
-                ?? ReadVisible("Telegram phone number (international format): "),
+            "api_id" => ResolveReusableValue(
+                "JALIL_TELEGRAM_API_ID",
+                credentialsStore.ApiId,
+                () => ReadVisible("Telegram API ID: "),
+                credentialsStore.SetApiId),
+            "api_hash" => ResolveReusableValue(
+                "JALIL_TELEGRAM_API_HASH",
+                credentialsStore.ApiHash,
+                () => ReadSecret("Telegram API hash: "),
+                credentialsStore.SetApiHash),
+            "phone_number" => ResolveReusableValue(
+                "JALIL_TELEGRAM_PHONE_NUMBER",
+                NullIfWhiteSpace(configuredPhoneNumber) ?? credentialsStore.PhoneNumber,
+                () => ReadVisible("Telegram phone number (international format): "),
+                credentialsStore.SetPhoneNumber),
             "verification_code" => ReadSecret("Telegram login code: "),
             "password" => ReadSecret("Telegram 2-step verification password: "),
             _ => null
@@ -242,6 +275,39 @@ file sealed class TelegramLoginConfiguration(string sessionPath, string? configu
         if (key is not ("verification_code" or "password"))
         {
             _values[key] = value;
+        }
+
+        return value;
+    }
+
+    private string ResolveReusableValue(
+        string environmentVariable,
+        string? savedValue,
+        Func<string> prompt,
+        Action<string> save)
+    {
+        var environmentValue = NullIfWhiteSpace(Environment.GetEnvironmentVariable(environmentVariable));
+        if (environmentValue is not null)
+        {
+            return environmentValue;
+        }
+
+        if (savedValue is not null)
+        {
+            return savedValue;
+        }
+
+        if (!_firstRunNoticeWritten)
+        {
+            Console.WriteLine("First-time Telegram setup. Reusable login values entered here are saved only on this computer.");
+            Console.WriteLine($"Saved credentials file: {credentialsPath}");
+            _firstRunNoticeWritten = true;
+        }
+
+        var value = prompt().Trim();
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            save(value);
         }
 
         return value;

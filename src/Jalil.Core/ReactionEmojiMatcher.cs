@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Jalil.Core;
 
 public static class ReactionEmojiMatcher
@@ -11,5 +13,9 @@ public static class ReactionEmojiMatcher
                StringComparison.Ordinal);
 
     public static string Normalize(string emoji)
-        => emoji.Trim().Replace("\uFE0F", string.Empty, StringComparison.Ordinal);
+        => emoji
+            .Trim()
+            .Normalize(NormalizationForm.FormKC)
+            .Replace("\uFE0E", string.Empty, StringComparison.Ordinal)
+            .Replace("\uFE0F", string.Empty, StringComparison.Ordinal);
 }

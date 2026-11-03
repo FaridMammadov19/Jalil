@@ -35,6 +35,8 @@ internal sealed class TelegramSettings
 
 internal sealed class RoutingSettings
 {
+    public string Destination { get; init; } = "Archive";
+
     public string FolderName { get; init; } = "test";
 
     public string AddCommand { get; init; } = "/done";

@@ -112,6 +112,7 @@ public sealed class ReactionEmojiMatcherTests
     [InlineData("✅", "✅")]
     [InlineData("↩", "↩️")]
     [InlineData(" ❤️ ", "❤")]
+    [InlineData("☕︎", "☕️")]
     public void MatchesConfiguredEmoji(string telegramEmoji, string configuredEmoji)
     {
         Assert.True(ReactionEmojiMatcher.IsMatch(telegramEmoji, configuredEmoji));
@@ -131,35 +132,52 @@ public sealed class ReactionEmojiMatcherTests
 public sealed class ReactionEdgeDetectorTests
 {
     [Theory]
-    [InlineData(true, false, true, false)]
-    [InlineData(false, false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(false, false, true)]
     public void DetectsNewOwnSelection(
         bool previousStateWasKnown,
         bool wasSelected,
-        bool isSelected,
-        bool isFreshOwnReaction)
+        bool isSelected)
     {
         Assert.True(ReactionEdgeDetector.IsNewSelection(
             previousStateWasKnown,
             wasSelected,
-            isSelected,
-            isFreshOwnReaction));
+            isSelected));
     }
 
     [Theory]
-    [InlineData(true, true, true, true)]
-    [InlineData(true, false, false, true)]
-    [InlineData(false, false, true, false)]
-    public void RejectsDuplicateUnselectedOrUnattributedState(
+    [InlineData(true, true, true)]
+    [InlineData(true, false, false)]
+    [InlineData(false, false, false)]
+    public void RejectsDuplicateOrUnselectedState(
         bool previousStateWasKnown,
         bool wasSelected,
-        bool isSelected,
-        bool isFreshOwnReaction)
+        bool isSelected)
     {
         Assert.False(ReactionEdgeDetector.IsNewSelection(
             previousStateWasKnown,
             wasSelected,
-            isSelected,
-            isFreshOwnReaction));
+            isSelected));
+    }
+}
+
+public sealed class UnicodeTextMatcherTests
+{
+    [Theory]
+    [InlineData("Клиенты", "клиенты")]
+    [InlineData("  РАБОТА  ", "работа")]
+    [InlineData("Мой отдел", "Мой отдел")]
+    public void MatchesCyrillicNamesRegardlessOfCaseOrUnicodeForm(string left, string right)
+    {
+        Assert.True(UnicodeTextMatcher.EqualsIgnoringCaseAndNormalization(left, right));
+    }
+
+    [Theory]
+    [InlineData("Клиенты", "Клиент")]
+    [InlineData("Все", "Архив")]
+    [InlineData(null, "Клиенты")]
+    public void RejectsDifferentOrMissingNames(string? left, string? right)
+    {
+        Assert.False(UnicodeTextMatcher.EqualsIgnoringCaseAndNormalization(left, right));
     }
 }

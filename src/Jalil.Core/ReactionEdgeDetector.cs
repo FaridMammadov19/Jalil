@@ -5,9 +5,7 @@ public static class ReactionEdgeDetector
     public static bool IsNewSelection(
         bool previousStateWasKnown,
         bool wasSelected,
-        bool isSelected,
-        bool isFreshOwnReaction)
+        bool isSelected)
         => isSelected &&
-           !wasSelected &&
-           (previousStateWasKnown || isFreshOwnReaction);
+           (!previousStateWasKnown || !wasSelected);
 }

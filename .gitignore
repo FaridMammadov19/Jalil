@@ -5,6 +5,7 @@
 .idea/
 **/bin/
 **/obj/
+artifacts/
 *.user
 *.suo
 .env
@@ -14,3 +15,4 @@ appsettings.local.json
 *.session.*
 Updates.state
 Reactions.state.json
+credentials.json
