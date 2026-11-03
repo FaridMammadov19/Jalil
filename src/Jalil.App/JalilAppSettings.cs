@@ -53,6 +53,8 @@ internal sealed class ReactionRoutingSettings
 {
     public bool Enabled { get; init; } = true;
 
+    public int PollIntervalSeconds { get; init; } = 5;
+
     public string AddEmoji { get; init; } = "👍";
 
     public string RemoveEmoji { get; init; } = "👎";

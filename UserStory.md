@@ -19,7 +19,7 @@ The first version runs locally on macOS or Windows. The computer running Jalil m
 5. Jalil archives that conversation using Telegram's native Archive.
 6. If the user sends `/undo`, Jalil restores the conversation to the main chat list.
 7. After a successful folder operation, Jalil deletes the command message for all participants.
-8. As an alternative trigger, the user can react to any message with configured add/remove emoji; other participants' reactions are ignored.
+8. As an alternative trigger, the user can react to the latest message in the conversation with configured add/remove emoji; Jalil polls recent main-list and archived conversations, while other participants' reactions are ignored.
 
 ## Acceptance criteria
 

@@ -58,6 +58,7 @@ The local file is excluded from Git because it may contain your phone number. It
   },
   "ReactionRouting": {
     "Enabled": true,
+    "PollIntervalSeconds": 5,
     "AddEmoji": "👍",
     "RemoveEmoji": "👎"
   }
@@ -66,7 +67,7 @@ The local file is excluded from Git because it may contain your phone number. It
 
 Set `Routing.Destination` to `Archive` for Telegram's native Archive, or `Folder` to use `FolderName`. Folder names support Cyrillic and other Unicode alphabets, including case-insensitive and normalized matching. The two commands must be different. Matching is exact and case-insensitive. When message deletion is enabled, Jalil changes the destination first and then deletes the command message for all participants. If the operation fails, the command remains visible so it can be retried.
 
-When reaction routing is enabled, reacting to any message with `AddEmoji` archives/adds its conversation, while `RemoveEmoji` restores/removes it. Only reactions selected by the authorized Jalil account are acted on; other participants' reactions are ignored. Standard emoji reactions are supported in this first version. Commands remain available as a fallback.
+When reaction routing is enabled, reacting to the latest message in a conversation with `AddEmoji` archives/adds it, while `RemoveEmoji` restores/removes it. Jalil checks the latest message in the 100 most recent main-list and archived conversations at the configured interval. Only reactions selected by the authorized Jalil account are acted on; other participants' reactions are ignored. Standard emoji reactions are supported in this first version. Commands remain available as a fallback.
 
 The phone number is optional and can remain empty. Do not put the API hash, login code, 2-step verification password, or Telegram session in this file.
 
@@ -142,7 +143,7 @@ The Telegram session, saved reusable credentials, and update checkpoint are stor
 - In `Folder` mode, the configured add command/reaction adds the conversation to `FolderName` and the remove command/reaction removes it.
 - Incoming commands, suffixed or embedded commands, edits, and media captions are ignored.
 - Successfully processed command messages are deleted for all participants when `DeleteCommandMessages` is enabled.
-- Configured standard emoji reactions can add or remove the conversation; reactions from other participants are ignored.
+- Configured standard emoji reactions on the latest conversation message can add or remove the conversation; reactions from other participants are ignored.
 - Regular existing Telegram folders are supported; imported/shared folders are rejected.
 - The first version adds the conversation to the target folder. It preserves other folder memberships.
 - Secret chats are not supported.

@@ -6,6 +6,9 @@ namespace Jalil.Telegram;
 
 public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<string, string?> loginConfiguration)
 {
+    private const int MainChatListFolderId = 0;
+    private const int ArchiveFolderId = 1;
+    private const int DialogPollingLimit = 100;
     private readonly ConcurrentQueue<Update> _pendingUpdates = new();
     private readonly HashSet<string> _completedEvents = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _actionLock = new(1, 1);
@@ -45,6 +48,11 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
                 return;
             }
 
+            if (options.ReactionRoutingEnabled)
+            {
+                await PollLatestDialogReactionsAsync(applyActions: false, cancellationToken);
+            }
+
             _ready = true;
             while (_pendingUpdates.TryDequeue(out var update))
             {
@@ -60,11 +68,19 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
             if (options.ReactionRoutingEnabled)
             {
                 Console.WriteLine(
-                    $"Reaction routing is enabled: {options.AddReactionEmoji} adds, {options.RemoveReactionEmoji} removes.");
+                    $"Reaction routing is enabled: {options.AddReactionEmoji} adds, {options.RemoveReactionEmoji} removes " +
+                    $"(latest-message polling every {options.ReactionPollInterval.TotalSeconds:0} seconds).");
             }
             Console.WriteLine("Press Ctrl+C to stop.");
 
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            if (options.ReactionRoutingEnabled)
+            {
+                await RunReactionPollingLoopAsync(cancellationToken);
+            }
+            else
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -183,17 +199,94 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
         }
 
         var peer = peerInfo.ToInputPeer();
-        var reactions = await GetFullReactionStateAsync(update, peer);
+        var reactions = await GetAuthoritativeReactionStateAsync(update, peer);
+        await ProcessReactionStateAsync(
+            peer,
+            update.msg_id,
+            reactions,
+            applyActions: true,
+            cancellationToken);
+    }
+
+    private async Task RunReactionPollingLoopAsync(CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            await Task.Delay(options.ReactionPollInterval, cancellationToken);
+
+            try
+            {
+                await PollLatestDialogReactionsAsync(applyActions: true, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine(
+                    $"Could not poll Telegram reactions ({exception.GetType().Name}): {exception.Message}");
+            }
+        }
+    }
+
+    private async Task PollLatestDialogReactionsAsync(
+        bool applyActions,
+        CancellationToken cancellationToken)
+    {
+        if (_client is null)
+        {
+            throw new InvalidOperationException("Telegram client is not available to poll reactions.");
+        }
+
+        foreach (var folderId in new[] { MainChatListFolderId, ArchiveFolderId })
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var dialogs = await _client.Messages_GetDialogs(
+                default,
+                0,
+                InputPeer.Self,
+                DialogPollingLimit,
+                0,
+                folderId,
+                false);
+
+            foreach (var message in dialogs.Messages.OfType<Message>())
+            {
+                if (dialogs.UserOrChat(message.peer_id) is not { } peerInfo)
+                {
+                    continue;
+                }
+
+                await ProcessReactionStateAsync(
+                    peerInfo.ToInputPeer(),
+                    message.id,
+                    message.reactions,
+                    applyActions,
+                    cancellationToken);
+            }
+        }
+    }
+
+    private async Task ProcessReactionStateAsync(
+        InputPeer peer,
+        int messageId,
+        MessageReactions? reactions,
+        bool applyActions,
+        CancellationToken cancellationToken)
+    {
+        var stateStore = _reactionStateStore
+                         ?? throw new InvalidOperationException("Reaction state store is not available.");
         var addState = GetOwnReactionState(reactions, options.AddReactionEmoji);
         var removeState = GetOwnReactionState(reactions, options.RemoveReactionEmoji);
-        var addKey = ReactionKey(peer, update.msg_id, options.AddReactionEmoji);
-        var removeKey = ReactionKey(peer, update.msg_id, options.RemoveReactionEmoji);
+        var addKey = ReactionKey(peer, messageId, options.AddReactionEmoji);
+        var removeKey = ReactionKey(peer, messageId, options.RemoveReactionEmoji);
 
         await _actionLock.WaitAsync(cancellationToken);
         try
         {
-            var addWasKnown = _reactionStateStore.TryGetSelected(addKey, out var addWasSelected);
-            var removeWasKnown = _reactionStateStore.TryGetSelected(removeKey, out var removeWasSelected);
+            var addWasKnown = stateStore.TryGetSelected(addKey, out var addWasSelected);
+            var removeWasKnown = stateStore.TryGetSelected(removeKey, out var removeWasSelected);
             var addIsNew = ReactionEdgeDetector.IsNewSelection(
                 addWasKnown,
                 addWasSelected,
@@ -211,7 +304,7 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
                 _ => null
             };
 
-            if (shouldAdd is not null)
+            if (applyActions && shouldAdd is not null)
             {
                 var result = await ApplyFolderActionAsync(peer, shouldAdd.Value, cancellationToken);
                 WriteResult(
@@ -219,9 +312,12 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
                     shouldAdd.Value ? options.AddReactionEmoji : options.RemoveReactionEmoji);
             }
 
-            _reactionStateStore.SetSelected(addKey, addState.IsSelected);
-            _reactionStateStore.SetSelected(removeKey, removeState.IsSelected);
-            _reactionStateStore.Save();
+            var stateChanged = stateStore.SetSelected(addKey, addState.IsSelected);
+            stateChanged |= stateStore.SetSelected(removeKey, removeState.IsSelected);
+            if (stateChanged)
+            {
+                stateStore.Save();
+            }
         }
         finally
         {
@@ -229,15 +325,10 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
         }
     }
 
-    private async Task<MessageReactions> GetFullReactionStateAsync(
+    private async Task<MessageReactions> GetAuthoritativeReactionStateAsync(
         UpdateMessageReactions update,
         InputPeer peer)
     {
-        if (!update.reactions.flags.HasFlag(MessageReactions.Flags.min))
-        {
-            return update.reactions;
-        }
-
         if (_client is null)
         {
             throw new InvalidOperationException("Telegram client is not available to fetch reaction details.");
@@ -253,7 +344,7 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
         };
 
         return fullUpdate?.reactions
-               ?? throw new InvalidOperationException("Telegram did not return the requested full reaction state.");
+               ?? throw new InvalidOperationException("Telegram did not return the requested authoritative reaction state.");
     }
 
     private async Task<FolderMutationStatus> ApplyFolderActionAsync(
@@ -293,9 +384,9 @@ public sealed class TelegramCompanion(TelegramCompanionOptions options, Func<str
                 cancellationToken);
     }
 
-    private static OwnReactionState GetOwnReactionState(MessageReactions reactions, string configuredEmoji)
+    private static OwnReactionState GetOwnReactionState(MessageReactions? reactions, string configuredEmoji)
     {
-        var selected = (reactions.results ?? [])
+        var selected = (reactions?.results ?? [])
             .Where(item => item.flags.HasFlag(ReactionCount.Flags.has_chosen_order))
             .Where(item => item.reaction is ReactionEmoji emoji &&
                            ReactionEmojiMatcher.IsMatch(emoji.emoticon, configuredEmoji))

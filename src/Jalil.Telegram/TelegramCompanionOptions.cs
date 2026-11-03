@@ -13,6 +13,7 @@ public sealed record TelegramCompanionOptions(
     string RemoveCommand,
     bool DeleteCommandMessages,
     bool ReactionRoutingEnabled,
+    TimeSpan ReactionPollInterval,
     string AddReactionEmoji,
     string RemoveReactionEmoji,
     string SessionPath,

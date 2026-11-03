@@ -26,9 +26,15 @@ internal sealed class ReactionStateStore
         return false;
     }
 
-    public void SetSelected(string key, bool isSelected)
+    public bool SetSelected(string key, bool isSelected)
     {
+        if (_entries.TryGetValue(key, out var existing) && existing.IsSelected == isSelected)
+        {
+            return false;
+        }
+
         _entries[key] = new ReactionStateEntry(isSelected, DateTimeOffset.UtcNow);
+        return true;
     }
 
     public void Save()

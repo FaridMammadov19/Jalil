@@ -73,6 +73,13 @@ if (settings.ReactionRouting.Enabled &&
     return 2;
 }
 
+if (settings.ReactionRouting.Enabled &&
+    settings.ReactionRouting.PollIntervalSeconds is < 2 or > 60)
+{
+    Console.Error.WriteLine("ReactionRouting.PollIntervalSeconds must be between 2 and 60.");
+    return 2;
+}
+
 if (!listFolders &&
     routingDestination == RoutingDestination.Folder &&
     string.IsNullOrWhiteSpace(folderName))
@@ -117,6 +124,7 @@ var options = new TelegramCompanionOptions(
     removeCommand,
     settings.Behavior.DeleteCommandMessages,
     settings.ReactionRouting.Enabled,
+    TimeSpan.FromSeconds(settings.ReactionRouting.PollIntervalSeconds),
     addReactionEmoji ?? string.Empty,
     removeReactionEmoji ?? string.Empty,
     sessionPath,

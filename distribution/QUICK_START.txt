@@ -29,8 +29,8 @@ Normal use
 ----------
 Keep the Jalil window running. By default:
 
-  - React with thumbs up to archive a conversation.
-  - React with thumbs down to restore it.
+  - React to the latest message with thumbs up to archive a conversation.
+  - React to the latest message with thumbs down to restore it.
   - /done and /undo remain available as fallback commands.
 
 To change the destination, folder name, commands, or emoji, close Jalil and
